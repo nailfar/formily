@@ -1,12 +1,12 @@
 import { useMemo, useEffect, useRef, useContext } from 'react'
 import {
-  IVirtualFieldStateProps,
+  IVirtualFieldRegistryProps,
   IVirtualFieldState,
   IForm,
   IVirtualField,
   LifeCycleTypes
 } from '@formily/core'
-import { uid, merge } from '@formily/shared'
+import { merge } from '@formily/shared'
 import { useForceUpdate } from './useForceUpdate'
 import { IVirtualFieldHook } from '../types'
 import { inspectChanged } from '../shared'
@@ -15,7 +15,7 @@ import FormContext from '../context'
 const INSPECT_PROPS_KEYS = ['props', 'visible', 'display']
 
 export const useVirtualField = (
-  options: IVirtualFieldStateProps
+  options: IVirtualFieldRegistryProps
 ): IVirtualFieldHook => {
   const forceUpdate = useForceUpdate()
   //const dirty = useDirty(options, ['props', 'visible', 'display'])
@@ -23,12 +23,12 @@ export const useVirtualField = (
     field: IVirtualField
     unmounted: boolean
     subscriberId: number
-    uid: string
+    uid: Symbol
   }>({
     field: null,
     unmounted: false,
     subscriberId: null,
-    uid: ''
+    uid: null
   })
   const form = useContext<IForm>(FormContext)
   if (!form) {
@@ -46,9 +46,9 @@ export const useVirtualField = (
         forceUpdate()
       }
     })
-    ref.current.uid = uid()
+    ref.current.uid = Symbol()
     initialized = true
-  }, [])
+  }, [options.name,options.path])
 
   useEffect(() => {
     //考虑到组件被unmount，props diff信息会被销毁，导致diff异常，所以需要代理在一个持久引用上

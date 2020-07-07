@@ -5,7 +5,8 @@ import {
   Subscribable,
   isValid,
   toArr,
-  isEqual
+  isEqual,
+  each
 } from '@formily/shared'
 import {
   IFormEffect,
@@ -52,7 +53,9 @@ export const createFormActions = (): IFormActions => {
     'setFieldValue',
     'getFieldValue',
     'setFieldInitialValue',
-    'getFieldInitialValue'
+    'getFieldInitialValue',
+    'disableUnmountClearStates',
+    'enableUnmountClearStates'
   ) as IFormActions
 }
 
@@ -79,7 +82,9 @@ export const createAsyncFormActions = (): IFormAsyncActions =>
     'setFieldValue',
     'getFieldValue',
     'setFieldInitialValue',
-    'getFieldInitialValue'
+    'getFieldInitialValue',
+    'disableUnmountClearStates',
+    'enableUnmountClearStates'
   ) as IFormAsyncActions
 
 export interface IEventTargetOption {
@@ -412,13 +417,13 @@ export const createQueryEffects = <
 ) => {
   return createEffectsProvider<TActions>(
     ({ applyMiddlewares, actions }) => $ => {
-      $(ON_FORM_QUERY).subscribe(async (type: string) => {
+      $(ON_FORM_QUERY).subscribe(async type => {
         if (!isStr(type)) return
-        let values = await applyMiddlewares(
+        const preValues = await applyMiddlewares(
           'onFormWillQuery',
           actions.getFormState(state => state.values)
         )
-        values = await applyMiddlewares(type, values)
+        const values = await applyMiddlewares(type, preValues)
         try {
           await applyMiddlewares('onFormDidQuery', await resource(values))
         } catch (e) {
@@ -450,7 +455,7 @@ export const inspectChanged = (
 ): any => {
   let changeNum = 0
   const changedProps = {}
-  toArr(keys).forEach((key: string) => {
+  each(keys, (key: string) => {
     if (!isEqual(source[key], target[key])) {
       changeNum++
       changedProps[key] = target[key]

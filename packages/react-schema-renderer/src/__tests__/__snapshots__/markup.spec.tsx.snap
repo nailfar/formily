@@ -4,7 +4,7 @@ exports[`test all apis markup string 1`] = `
 Object {
   "": Object {
     "displayName": "FormState",
-    "editable": undefined,
+    "editable": true,
     "errors": Array [],
     "initialValues": Object {
       "aa": "123",
@@ -14,7 +14,6 @@ Object {
     "loading": false,
     "modified": true,
     "mounted": true,
-    "props": Object {},
     "submitting": false,
     "unmounted": false,
     "valid": true,
@@ -33,7 +32,7 @@ Object {
     "effectErrors": Array [],
     "effectWarnings": Array [],
     "errors": Array [],
-    "formEditable": undefined,
+    "formEditable": true,
     "initialValue": "123",
     "initialized": true,
     "invalid": false,
@@ -58,7 +57,6 @@ Object {
     "rules": Array [],
     "selfEditable": undefined,
     "touched": false,
-    "unmountRemoveValue": true,
     "unmounted": false,
     "valid": true,
     "validating": false,
@@ -78,7 +76,7 @@ exports[`test all apis markup virtualbox 1`] = `
 Object {
   "": Object {
     "displayName": "FormState",
-    "editable": undefined,
+    "editable": true,
     "errors": Array [],
     "initialValues": Object {
       "aa": "123",
@@ -88,7 +86,6 @@ Object {
     "loading": false,
     "modified": true,
     "mounted": true,
-    "props": Object {},
     "submitting": false,
     "unmounted": false,
     "valid": true,
@@ -128,7 +125,7 @@ Object {
     "effectErrors": Array [],
     "effectWarnings": Array [],
     "errors": Array [],
-    "formEditable": undefined,
+    "formEditable": true,
     "initialValue": "123",
     "initialized": true,
     "invalid": false,
@@ -153,7 +150,6 @@ Object {
     "rules": Array [],
     "selfEditable": undefined,
     "touched": false,
-    "unmountRemoveValue": true,
     "unmounted": false,
     "valid": true,
     "validating": false,

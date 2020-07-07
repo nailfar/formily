@@ -146,6 +146,9 @@ export const ArrayTable: any = styled(
       return (
         <Table
           {...componentProps}
+          rowKey={record => {
+            return toArr(value).indexOf(record)
+          }}
           pagination={false}
           columns={columns}
           dataSource={toArr(value)}
