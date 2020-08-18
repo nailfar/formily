@@ -191,7 +191,7 @@ const MegaLayoutItem = (props) => {
         componentProps.style = {
           ...(componentProps.style || {}),
           width: '100%',
-          flex: 1,
+          flex: '1 1 0%',
         }
       }
 
@@ -215,7 +215,7 @@ const MegaLayoutItem = (props) => {
   })
 }
 
-const FormMegaLayout = createVirtualBox<ILayoutProps>('mega-layout', MegaLayout)
+const FormMegaLayout = createVirtualBox<Omit<ILayoutProps, 'children'> & { children: React.ReactNode }>('mega-layout', MegaLayout)
 
 export {
     MegaLayout,

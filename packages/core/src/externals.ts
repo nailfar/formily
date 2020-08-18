@@ -53,6 +53,7 @@ export const createFormExternals = (
     heart,
     graph,
     validator,
+    upload,
     hostUpdate,
     afterUnmount,
     nextTick,
@@ -76,25 +77,30 @@ export const createFormExternals = (
   function eachArrayExchanges(
     prevState: IFieldState,
     currentState: IFieldState,
-    eacher: (prevPath: string, currentPath: string) => void
+    eacher: (prevPath: string, currentPath: string, lastResults: any) => void
   ) {
     const exchanged = {}
+    const prevValue = prevState.value
+    const currentValue = currentState.value
+    const maxLengthValue =
+      prevValue?.length > currentValue?.length ? prevValue : currentValue
     //删除元素正向循环，添加或移动使用逆向循环
+    let lastResults: any
     each(
-      currentState?.value,
+      maxLengthValue,
       (item, index) => {
-        const prev = prevState.value?.[index]?.[ARRAY_UNIQUE_TAG]
-        const current = item?.[ARRAY_UNIQUE_TAG]
+        const prev = prevValue?.[index]?.[ARRAY_UNIQUE_TAG]
+        const current = currentValue?.[index]?.[ARRAY_UNIQUE_TAG]
         if (prev === current) return
-        if (prev === undefined || current === undefined) {
+        if (prev === undefined) {
           return
         }
-        if (currentState.value?.length === prevState.value?.length) {
+        if (currentValue?.length === prevValue?.length) {
           if (exchanged[prev] || exchanged[current]) return
           exchanged[prev] = true
           exchanged[current] = true
         }
-        eacher(prev, current)
+        lastResults = eacher(prev, current, lastResults)
       },
       currentState?.value?.length >= prevState?.value?.length
     )
@@ -140,7 +146,20 @@ export const createFormExternals = (
     return prevTags.slice(currentTags.length - prevTags.length)
   }
 
-  function removeArrayNodes(tags: string[]) {
+  function removeArrayNodes(field: IField, tags: string[]) {
+    if (tags.length <= 0) return
+    const matchTag = (node: IField) => (tag: string) =>
+      FormPath.parse(calculateMathTag(tag)).matchAliasGroup(
+        node.state.name,
+        node.state.path
+      )
+
+    graph.eachChildren(field.state.path, node => {
+      if (tags.some(matchTag(node))) {
+        graph.remove(node.state.path)
+      }
+    })
+
     tags.forEach(tag => {
       graph.select(calculateMathTag(tag), (node: IField) => {
         graph.remove(node.state.path)
@@ -155,7 +174,8 @@ export const createFormExternals = (
   function exchangeState(
     parentPath: FormPathPattern,
     prevPattern: FormPathPattern,
-    currentPattern: FormPathPattern
+    currentPattern: FormPathPattern,
+    lastCurrentStates: any
   ) {
     const currentIndex = FormPath.transform(
       currentPattern,
@@ -164,6 +184,8 @@ export const createFormExternals = (
         return Number(args[args.length - 1])
       }
     )
+    const exchanged = {}
+    const currentStates = {}
     graph.eachChildren(
       parentPath,
       calculateMathTag(prevPattern),
@@ -173,16 +195,34 @@ export const createFormExternals = (
         const currentPath = calculateMovePath(prevPath, currentIndex)
         const currentState = getFieldState(currentPath, getExchangeState)
         const currentField = graph.get(currentPath) as IField
-        if (prevField && currentField) {
+        if (prevField) {
           prevField.setSourceState(state => {
-            Object.assign(state, currentState)
+            if (currentState) {
+              Object.assign(state, currentState)
+            } else {
+              //补位交换
+              Object.assign(
+                state,
+                getExchangeState(lastCurrentStates[prevPath])
+              )
+            }
+
+            if (isField(prevField)) {
+              syncFormMessages('errors', state)
+              syncFormMessages('warnings', state)
+            }
           })
+        }
+        if (currentField) {
+          currentStates[currentPath] = currentField.getState()
           currentField.setSourceState(state => {
             Object.assign(state, prevState)
           })
         }
+        exchanged[prevPath + currentPath] = true
       }
     )
+    return currentStates
   }
 
   function eachParentFields(field: IField, callback: (field: IField) => void) {
@@ -199,17 +239,24 @@ export const createFormExternals = (
       if (dirtys.initialized) {
         heart.publish(LifeCycleTypes.ON_FIELD_INIT, field)
       }
-      if (dirtys.value) {
+      if (dirtys.value || dirtys.values) {
         const isArrayList = /array/gi.test(published.dataType)
         if (isArrayList) {
           const prevTags = parseArrayTags(field.prevState.value)
           const currentTags = parseArrayTags(published.value)
           if (!isEqual(prevTags, currentTags)) {
             const removedTags = calculateRemovedTags(prevTags, currentTags)
-            eachArrayExchanges(field.prevState, published, (prev, current) =>
-              exchangeState(path, prev, current)
-            )
-            removeArrayNodes(removedTags)
+            if (prevTags.length && currentTags.length) {
+              form.batch(() => {
+                eachArrayExchanges(
+                  field.prevState,
+                  published,
+                  (prev, current, lastResults = {}) =>
+                    exchangeState(path, prev, current, lastResults)
+                )
+              })
+            }
+            removeArrayNodes(field, removedTags)
             //重置TAG，保证下次状态交换是没问题的
             setFormValuesIn(
               field.state.name,
@@ -260,7 +307,12 @@ export const createFormExternals = (
         syncFormMessages('warnings', published)
       }
 
-      if (dirtys.visible || dirtys.display || dirtys.editable) {
+      if (
+        dirtys.visible ||
+        dirtys.display ||
+        dirtys.editable ||
+        dirtys.unmounted
+      ) {
         //fix #682
         if (dirtys.unmounted) {
           if (supportUnmountClearStates(published.path)) {
@@ -362,20 +414,33 @@ export const createFormExternals = (
           return form.getState(state => state.editable)
         },
         setValue(name, value) {
-          setFormValuesIn(name, value)
+          upload(() => {
+            setFormValuesIn(name, value)
+          })
         },
         setInitialValue(name, value) {
-          setFormInitialValuesIn(name, value)
+          upload(() => {
+            setFormInitialValuesIn(name, value)
+          })
         },
         removeValue(name) {
           if (!graph.get(nodePath)) return
-          deleteFormValuesIn(name)
+          upload(() => {
+            deleteFormValuesIn(name)
+          })
         },
         getInitialValue(name) {
           return getFormInitialValuesIn(name)
         },
         unControlledValueChanged() {
           nextTick(() => {
+            //非受控值变化，需要mock一个dirty信息，否则hasChanged判断会失效
+            field.dirtys = {
+              value: true,
+              values: true,
+              modified: true
+            }
+            field.dirtyCount = 3
             heart.publish(LifeCycleTypes.ON_FIELD_VALUE_CHANGE, field)
             heart.publish(LifeCycleTypes.ON_FIELD_CHANGE, field)
           })
@@ -897,6 +962,7 @@ export const createFormExternals = (
       field.setState((state: IFieldState<FormilyCore.FieldProps>) => {
         state.value = values[0]
         state.values = values
+        state.inputed = true
       })
       heart.publish(LifeCycleTypes.ON_FIELD_INPUT_CHANGE, field)
       heart.publish(LifeCycleTypes.ON_FORM_INPUT_CHANGE, form)
@@ -908,11 +974,15 @@ export const createFormExternals = (
         const childNodePath = FormPath.parse(nodePath).concat(key)
         setFieldState(childNodePath, state => {
           state.value = undefined
+          state.values = []
+          state.inputed = true
         })
         deleteFormValuesIn(childNodePath)
       } else {
         field.setState(state => {
           state.value = undefined
+          state.values = []
+          state.inputed = true
         })
         deleteFormValuesIn(nodePath)
       }
@@ -959,6 +1029,11 @@ export const createFormExternals = (
           setValue(arr)
           return arr
         }
+        if (origin.length === index) {
+          const arr = origin.concat([value])
+          setValue(arr)
+          return arr
+        }
         const arr = origin.reduce((buf, item, idx) => {
           return idx === index ? buf.concat([value, item]) : buf.concat(item)
         }, [])
@@ -989,12 +1064,20 @@ export const createFormExternals = (
       shift() {
         return mutators.remove(0)
       },
-      move($from: number, $to: number) {
+      swap($from: number, $to: number) {
         const arr = toArr(getValue()).slice()
         const fromItem = arr[$from]
         const toItem = arr[$to]
         arr[$from] = toItem
         arr[$to] = fromItem
+        setValue(arr)
+        return arr
+      },
+      move($from: number, $to: number) {
+        const arr = toArr(getValue()).slice()
+        const item = arr[$from]
+        arr.splice($from, 1)
+        arr.splice($to, 0, item)
         setValue(arr)
         return arr
       },
@@ -1004,7 +1087,7 @@ export const createFormExternals = (
       },
       moveDown(index: number) {
         const len = toArr(getValue()).length
-        return mutators.move(index, index + 1 > len ? 0 : index + 1)
+        return mutators.move(index, index + 1 >= len ? 0 : index + 1)
       },
       validate(opts?: IFormExtendedValidateFieldOptions) {
         return validate(

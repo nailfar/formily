@@ -23,6 +23,7 @@ export const Form: React.FC<INextFormProps &
     form,
     useDirty,
     onValidateFailed,
+    previewPlaceholder,
     validateFirst,
     ...rest
   } = props
@@ -49,6 +50,7 @@ export const Form: React.FC<INextFormProps &
                   field={false}
                   onSubmit={e => {
                     if (e && e.preventDefault) e.preventDefault()
+                    if (e && e.stopPropagation) e.stopPropagation()
                     form.submit().catch(e => log.warn(e))
                   }}
                   onReset={() => {

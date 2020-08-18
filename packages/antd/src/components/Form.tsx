@@ -23,6 +23,7 @@ export const Form: React.FC<IAntdFormProps &
     form,
     useDirty,
     onValidateFailed,
+    previewPlaceholder,
     editable,
     validateFirst,
     ...rest
@@ -41,6 +42,7 @@ export const Form: React.FC<IAntdFormProps &
       {form => {
         const onSubmit = e => {
           if (e && e.preventDefault) e.preventDefault()
+          if (e && e.stopPropagation) e.stopPropagation()
           form.submit().catch(e => log.warn(e))
         }
         const onReset = () => {

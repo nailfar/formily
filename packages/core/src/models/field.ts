@@ -77,6 +77,7 @@ export const Field = createModel<IFieldState, IFieldStateProps>(
       pristine: true,
       valid: true,
       modified: false,
+      inputed: false,
       touched: false,
       active: false,
       visited: false,
@@ -122,7 +123,6 @@ export const Field = createModel<IFieldState, IFieldStateProps>(
           return true
         }
       }
-
       return !isEqual(currentValue, nextValue)
     }
 
@@ -153,9 +153,10 @@ export const Field = createModel<IFieldState, IFieldStateProps>(
       let initialValue = this.getInitialValueFromProps()
       let formEditable = this.getEditableFromProps()
       if (this.isArrayList()) {
-        value = this.tagArrayList(toArr(value))
-        initialValue = this.tagArrayList(toArr(initialValue))
+        value = this.fixArrayListTags(toArr(value))
+        initialValue = this.fixArrayListTags(toArr(initialValue))
       }
+      const valueChanged = !isEqual(this.state.value, value)
 
       const state = {
         ...this.state,
@@ -166,15 +167,15 @@ export const Field = createModel<IFieldState, IFieldStateProps>(
           formEditable,
           this.state.name
         ),
+        modified: this.state.modified || valueChanged,
         value,
         values: [value].concat(this.state.values.slice(1))
       }
-      const compareResults = isEqual(this.state.value, value)
-      if (!compareResults && compareResults !== this.lastCompareResults) {
+      if (valueChanged && valueChanged !== this.lastCompareResults) {
         this.state.value = value
         this.props?.unControlledValueChanged?.()
       }
-      this.lastCompareResults = compareResults
+      this.lastCompareResults = valueChanged
       return state
     }
 
@@ -311,6 +312,14 @@ export const Field = createModel<IFieldState, IFieldStateProps>(
       } else {
         draft.invalid = false
         draft.valid = true
+      }
+    }
+
+    fixArrayListTags(value: any[]) {
+      if (value?.[0]?.[ARRAY_UNIQUE_TAG]) {
+        return value
+      } else {
+        return this.tagArrayList(value)
       }
     }
 

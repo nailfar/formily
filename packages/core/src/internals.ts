@@ -9,7 +9,8 @@ import {
   isValid,
   isEqual,
   clone,
-  isFn
+  isFn,
+  defaults
 } from '@formily/shared'
 import {
   LifeCycleTypes,
@@ -29,6 +30,11 @@ export const createFormInternals = (options: IFormCreatorOptions = {}) => {
       notifyFormValuesChange()
     }
     if (dirtys.initialValues) {
+      if (!env.uploading) {
+        form.setState(state => {
+          state.values = defaults(published.initialValues, published.values)
+        })
+      }
       notifyFormInitialValuesChange()
     }
     if (dirtys.unmounted && published.unmounted) {
@@ -225,7 +231,11 @@ export const createFormInternals = (options: IFormCreatorOptions = {}) => {
     }
   }
 
-  function syncFormMessages(type: string, fieldState: IFieldState) {
+  function syncFormMessages(
+    type: string,
+    fieldState: Partial<IFieldState>,
+    silent?: boolean
+  ) {
     const { name, path } = fieldState
     const messages = fieldState[type]
     form.setState(state => {
@@ -249,7 +259,7 @@ export const createFormInternals = (options: IFormCreatorOptions = {}) => {
           messages
         })
       }
-    })
+    }, silent)
   }
 
   function batchRunTaskQueue(
@@ -303,10 +313,10 @@ export const createFormInternals = (options: IFormCreatorOptions = {}) => {
     form.setState((state: IFormState) => {
       state.initialized = true
       if (isValid(options.initialValues)) {
-        state.initialValues = options.initialValues
+        state.initialValues = clone(options.initialValues)
       }
       if (isValid(options.values)) {
-        state.values = options.values
+        state.values = clone(options.values)
       }
       if (!isValid(state.values)) {
         state.values = state.initialValues
@@ -362,10 +372,16 @@ export const createFormInternals = (options: IFormCreatorOptions = {}) => {
     return true
   }
 
+  function upload(callback: () => void) {
+    env.uploading = true
+    callback()
+    env.uploading = false
+  }
+
   const graph = new FormGraph({
     matchStrategy
   })
-  const form = new Form(options)
+  const form = new Form()
   const validator = new FormValidator({
     ...options,
     matchStrategy
@@ -388,6 +404,7 @@ export const createFormInternals = (options: IFormCreatorOptions = {}) => {
     hostRendering: false,
     publishing: {},
     taskQueue: [],
+    uploading: false,
     taskIndexes: {},
     realRemoveTags: [],
     lastShownStates: {},
@@ -406,6 +423,7 @@ export const createFormInternals = (options: IFormCreatorOptions = {}) => {
     validator,
     heart,
     env,
+    upload,
     nextTick,
     afterUnmount,
     getDataPath,

@@ -154,6 +154,7 @@ export interface IFieldState<FieldProps = any> {
   formEditable: boolean | ((name: string) => boolean)
   loading: boolean
   modified: boolean
+  inputed: boolean
   active: boolean
   visited: boolean
   validating: boolean
@@ -174,19 +175,6 @@ export interface IFieldState<FieldProps = any> {
   unmountRemoveValue: boolean
   props: FieldProps
   [key: string]: any
-}
-
-export type IFieldUserState<FieldProps = any> = Omit<
-  IFieldState<FieldProps>,
-  | 'errors'
-  | 'effectErrors'
-  | 'ruleErrors'
-  | 'warnings'
-  | 'effectWarnings'
-  | 'ruleWarnings'
-> & {
-  errors: React.ReactNode | React.ReactNode[]
-  warnings: React.ReactNode | React.ReactNode[]
 }
 
 export type FieldStateDirtyMap = StateDirtyMap<IFieldState>
@@ -273,15 +261,14 @@ export interface IFormState<FormProps = any> {
 
 export type FormStateDirtyMap = StateDirtyMap<IFormState>
 
-export interface IFormStateProps {
+export type IFormStateProps = {}
+
+export interface IFormCreatorOptions {
   initialValues?: {}
   values?: {}
   lifecycles?: FormLifeCycle[]
   editable?: boolean | ((name: string) => boolean)
   validateFirst?: boolean
-}
-
-export interface IFormCreatorOptions extends IFormStateProps {
   onChange?: (values: IFormState['values']) => void
   onSubmit?: (values: IFormState['values']) => any | Promise<any>
   onReset?: () => void
